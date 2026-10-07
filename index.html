@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DICOM to NIfTI</title>
+<meta name="description" content="Convert DICOM to NIfTI in your browser. Nothing is uploaded.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>DICOM to NIfTI</h1>
+  <p class="lede">Convert MRI DICOM to NIfTI (<code>.nii.gz</code>) with <a href="https://github.com/rordenlab/dcm2niix">dcm2niix</a>.
+  Conversion runs <strong>entirely in your browser</strong>. Your files are never uploaded.</p>
+</header>
+
+<main>
+  <section id="step-input" aria-labelledby="h-input">
+    <h2 id="h-input">1. Choose your DICOM</h2>
+    <div id="drop" tabindex="0">
+      <p><strong>Drop a folder or a .zip here</strong></p>
+      <p>or
+        <button type="button" id="pick-folder">Choose folder</button>
+        <button type="button" id="pick-files">Choose files or .zip</button>
+      </p>
+      <input type="file" id="in-folder" webkitdirectory multiple hidden>
+      <input type="file" id="in-files" multiple hidden>
+    </div>
+    <p id="selection" role="status"></p>
+    <p class="hint">No DICOM handy? Download the
+      <a href="https://biobank.ctsu.ox.ac.uk/crystal/ukb/examples/eg_brain_t1.zip">UK Biobank example brain T1</a>
+      (39 MB .zip, from <a href="https://biobank.ctsu.ox.ac.uk/ukb/refer.cgi?id=346">UK Biobank</a>) and drop the .zip above without unpacking it.</p>
+    <p class="hint">A whole study folder is fine; localizers and other series are listed separately so you can pick.
+    Very large studies (over ~1.5 GB) may exhaust browser memory. If that happens, select just the series folder you need.</p>
+  </section>
+
+  <section id="step-options" aria-labelledby="h-options">
+    <h2 id="h-options">2. Options</h2>
+    <label><input type="checkbox" id="o-gz" checked> Compress output (<code>.nii.gz</code>)</label>
+    <label><input type="checkbox" id="o-derived" checked> Skip localizers, derived and 2D scout images</label>
+    <details>
+      <summary>Advanced</summary>
+      <label>Output filename format
+        <input id="o-fmt" value="series%s" size="22" spellcheck="false">
+        <span class="hint">dcm2niix <code>-f</code> codes: <code>%s</code> series number, <code>%d</code> series description, <code>%p</code> protocol, <code>%t</code> time.
+        Avoid <code>%n</code>, <code>%i</code> and <code>%a</code> (patient name, ID, age): they put identifying data in the filename.</span></label>
+      <label>Merge 2D slices
+        <select id="o-merge"><option value="2" selected>auto</option><option value="1">yes</option><option value="0">no</option></select></label>
+      <label>Crop 3D acquisitions
+        <select id="o-crop"><option value="n" selected>no</option><option value="y">yes</option></select></label>
+      <label>Compression level
+        <select id="o-level"><option>1</option><option>3</option><option selected>6</option><option>9</option></select></label>
+    </details>
+    <p class="cli">Equivalent command: <code id="cli"></code></p>
+    <button type="button" id="run" class="primary" disabled>Convert</button>
+    <span id="progress" role="status"></span>
+  </section>
+
+  <section id="step-results" aria-labelledby="h-results" hidden>
+    <h2 id="h-results">3. Results</h2>
+    <p id="summary" role="status"></p>
+    <div class="tablewrap">
+    <table id="series">
+      <thead><tr><th></th><th>#</th><th>Description</th><th>Dimensions</th><th>Voxel (mm)</th><th>Size</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+    <p>
+      <label><input type="checkbox" id="o-json"> Include the JSON sidecar (scan parameters) in downloads</label>
+      <label><input type="checkbox" id="o-strip" checked> Remove institution and scanner-identifying fields from the sidecar
+        <span class="hint">(institution name and address, department, station name, device serial number)</span></label>
+    </p>
+    <p><button type="button" id="dl-selected" class="primary" disabled>Download selected</button>
+       <span class="hint">One series downloads as a single file; several download as a .zip.</span></p>
+    <div id="preview" hidden>
+      <h3 id="pv-title"></h3>
+      <div class="views"></div>
+      <p class="hint">Quick look in stored voxel order. Not reoriented, so left/right and up/down may differ from the scanner display.
+      It's meant to confirm the series is intact, not to check orientation.</p>
+    </div>
+    <details><summary>Conversion log</summary><pre id="log"></pre></details>
+    <aside id="next">
+      <h3>Next: segment it in CROWN</h3>
+      <p>CROWN expects a <strong>T1-weighted</strong> head MRI as a NIfTI file. Download your T1 series above,
+      then upload it at <a href="https://crown-toolkit.vercel.app" target="_blank" rel="noopener">CROWN</a>.</p>
+    </aside>
+  </section>
+  <p id="error" role="alert" hidden></p>
+</main>
+
+<footer>
+  <p><strong>Privacy.</strong> DICOM headers contain patient information. Here they are read and stripped in your browser.
+  The NIfTI image itself still contains the face, so treat it as identifiable. This tool does not deface.</p>
+  <p>Powered by dcm2niix (WebAssembly) &middot; <a href="https://github.com/d3v-26/crown-dicom">source</a> &middot; <a href="https://github.com/d3v-26/crown-dicom/issues">report a problem</a></p>
+  <p class="hint">Not a medical device. Not for clinical use.</p>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
