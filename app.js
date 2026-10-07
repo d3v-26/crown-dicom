@@ -15,6 +15,14 @@ function el(tag, props = {}, ...kids) {
 let files = [];
 let rows = [];
 
+// ---------- theme (same "theme" key and dark/light classes as CROWN) ----------
+
+$('theme').onclick = () => {
+  const next = document.documentElement.classList.contains('dark') ? 'light' : 'dark';
+  document.documentElement.className = next;
+  try { localStorage.setItem('theme', next); } catch { /* storage may be blocked */ }
+};
+
 // ---------- input ----------
 
 const isJunk = (path) => /(^|\/)(\.[^/]*|__MACOSX)(\/|$)/.test(path);
