@@ -13,7 +13,7 @@
     document.documentElement.className = t;
   } catch (e) { document.documentElement.className = "dark"; }
 </script>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <!-- Icons: Lucide (ISC), the same set CROWN uses -->
@@ -186,13 +186,18 @@
         <span class="xs muted">(institution name and address, department, station name, device serial number)</span></span></label>
       <p class="actions-row">
         <button type="button" class="btn btn-primary" id="dl-selected" disabled><svg class="i"><use href="#i-download"/></svg> Download selected</button>
-        <span class="xs muted">One series downloads as a single file; several download as a .zip.</span>
+        <span class="xs muted">One series downloads as a single file; several download as a .zip. Gradient tables (.bval/.bvec) are included for diffusion series.</span>
       </p>
       <div id="preview" hidden>
-        <h3 class="mono-label" id="pv-title"></h3>
-        <div class="views"></div>
-        <p class="xs muted">Quick look in stored voxel order. Not reoriented, so left/right and up/down may differ from the scanner display.
-        It's meant to confirm the series is intact, not to check orientation.</p>
+        <div class="pv-head">
+          <h3 class="mono-label" id="pv-title"></h3>
+          <div class="seg" role="group" aria-label="View mode">
+            <button type="button" id="v-2d" class="on" aria-pressed="true">2D</button>
+            <button type="button" id="v-3d" aria-pressed="false">3D</button>
+          </div>
+        </div>
+        <div id="nv-wrap"><canvas id="nv" aria-label="Interactive image viewer"></canvas></div>
+        <p class="xs muted">Radiological convention (left is on the right), as in CROWN. Click or drag to move the crosshair; scroll to change slice.</p>
       </div>
       <details class="logbox"><summary class="mono-label">// Conversion log</summary><pre id="log"></pre></details>
     </div>
@@ -215,6 +220,6 @@
   <p>Powered by <a href="https://github.com/rordenlab/dcm2niix">dcm2niix</a> (WebAssembly) &middot; <a href="https://github.com/d3v-26/crown-dicom">source</a> &middot; <a href="https://github.com/d3v-26/crown-dicom/issues">report a problem</a></p>
 </footer>
 
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=4"></script>
 </body>
 </html>

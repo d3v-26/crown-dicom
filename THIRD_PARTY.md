@@ -8,3 +8,4 @@
 - **Space Grotesk** and **JetBrains Mono** (`assets/fonts/`), SIL Open Font License 1.1 (see the `OFL-*.txt` files).
   Variable `latin` woff2 files from the `@fontsource-variable` packages, self-hosted so the page makes no requests to Google.
 - **Lucide icons** (inlined as SVG symbols in `index.html`), ISC license (`assets/fonts/LICENSE-lucide.txt`). Same icon set as CROWN.
+- **NiiVue 0.69.0** (`vendor/niivue/niivue.umd.js`), BSD-2-Clause, https://github.com/niivue/niivue. The same viewer CROWN uses. Loaded on first preview.

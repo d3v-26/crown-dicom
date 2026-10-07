@@ -1,6 +1,6 @@
 import { Dcm2niix } from './vendor/dcm2niix/index.jpeg.js';
 import { unzipSync, zipSync } from './vendor/fflate/browser.js';
-import { readHeader, readVolume, displayWindow, drawSlice } from './nifti.js';
+import { readHeader } from './nifti.js?v=4';
 
 const $ = (id) => document.getElementById(id);
 const MAX_UNZIPPED = 4 * 1024 ** 3;
@@ -338,7 +338,7 @@ async function download(selected) {
   for (const r of selected) {
     list.push(r.g.nii);
     if (withJson && r.g.json) list.push(await cleanSidecar(r.g.json));
-    if (withJson) list.push(...(r.g.extra || []));
+    list.push(...(r.g.extra || [])); // .bval/.bvec carry no identifying data
   }
   if (list.length === 1) return save(list[0], list[0].name);
   const entries = {};
@@ -346,25 +346,64 @@ async function download(selected) {
   save(new Blob([zipSync(entries, { level: 0 })], { type: 'application/zip' }), 'nifti.zip');
 }
 
+// ---------- viewer (NiiVue, the same viewer CROWN uses) ----------
+
+let nv = null;
+let nvLoading = null;
+let nvUrl = null;
+
+function loadNiivueScript() {
+  if (globalThis.niivue) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = el('script', { src: 'vendor/niivue/niivue.umd.js?v=4' });
+    s.onload = res;
+    s.onerror = () => rej(new Error('Could not load the viewer'));
+    document.head.append(s);
+  });
+}
+
+async function getViewer() {
+  if (nv) return nv;
+  nvLoading ||= (async () => {
+    await loadNiivueScript();
+    const v = new globalThis.niivue.Niivue({
+      show3Dcrosshair: true,
+      isRadiologicalConvention: true,
+      crosshairColor: [1, 0, 0, 1],
+      backColor: [0.05, 0.05, 0.08, 1],
+      logLevel: 'error',
+    });
+    await v.attachToCanvas($('nv'));
+    nv = v;
+    return v;
+  })();
+  try { return await nvLoading; } catch (e) { nvLoading = null; throw e; }
+}
+
+function setViewMode(mode) {
+  $('v-2d').classList.toggle('on', mode === '2d');
+  $('v-3d').classList.toggle('on', mode === '3d');
+  $('v-2d').setAttribute('aria-pressed', String(mode === '2d'));
+  $('v-3d').setAttribute('aria-pressed', String(mode === '3d'));
+  if (!nv) return;
+  nv.setSliceType(mode === '3d' ? nv.sliceTypeRender : nv.sliceTypeMultiplanar);
+  nv.drawScene();
+}
+$('v-2d').onclick = () => setViewMode('2d');
+$('v-3d').onclick = () => setViewMode('3d');
+
 async function preview(r) {
-  $('pv-title').textContent = `Loading ${r.g.base}...`;
+  $('pv-title').textContent = `Loading ${r.g.nii.name}...`;
   $('preview').hidden = false;
-  const views = $('preview').querySelector('.views');
-  views.replaceChildren();
   try {
-    const { data, header } = await readVolume(r.g.nii);
-    const win = displayWindow(data);
-    $('pv-title').textContent = `Quick look: ${r.g.nii.name}`;
-    const [nx, ny, nz] = header.dims;
-    for (const [plane, n] of [['axial', nz], ['coronal', ny], ['sagittal', nx]]) {
-      const canvas = el('canvas');
-      const slider = el('input', { type: 'range', min: 0, max: n - 1, value: n >> 1, ariaLabel: `${plane} slice` });
-      const draw = () => drawSlice(canvas, data, header, plane, Number(slider.value), win);
-      slider.oninput = draw;
-      draw();
-      views.append(el('div', { className: 'view' }, canvas, slider, el('div', { textContent: plane })));
-    }
+    const v = await getViewer();
+    if (nvUrl) URL.revokeObjectURL(nvUrl);
+    nvUrl = URL.createObjectURL(r.g.nii);
+    await v.loadVolumes([{ url: nvUrl, name: r.g.nii.name }]);
+    setViewMode('2d');
+    $('pv-title').textContent = `Viewing: ${r.g.nii.name}`;
+    $('preview').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (err) {
-    $('pv-title').textContent = `Could not preview ${r.g.base}: ${err.message || err}`;
+    $('pv-title').textContent = `Could not preview ${r.g.nii.name}: ${err.message || err}`;
   }
 }
