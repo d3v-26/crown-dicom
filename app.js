@@ -23,6 +23,46 @@ $('theme').onclick = () => {
   try { localStorage.setItem('theme', next); } catch { /* storage may be blocked */ }
 };
 
+// ---------- wizard (Upload > Configure > Converting > Results, as in CROWN) ----------
+
+let step = 1;
+let results = null;
+
+function canGo(n) {
+  if (step === 3) return false; // busy
+  if (n === 1) return true;
+  if (n === 2) return files.length > 0;
+  if (n === 4) return results !== null;
+  return false;
+}
+
+function updateStepper() {
+  document.querySelectorAll('#stepper li').forEach((li, i) => {
+    const n = i + 1;
+    li.classList.toggle('current', n === step);
+    li.classList.toggle('done', n < step || (n === 4 && results !== null && step !== 4));
+    li.classList.toggle('clickable', n !== step && canGo(n));
+    const b = li.querySelector('button');
+    b.disabled = !(n !== step && canGo(n));
+    if (n === step) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+  });
+}
+
+function go(n) {
+  step = n;
+  for (let i = 1; i <= 4; i++) $(`panel-${i}`).hidden = i !== n;
+  updateStepper();
+  window.scrollTo({ top: 0 });
+}
+
+document.querySelectorAll('#stepper button').forEach((b) => {
+  b.onclick = () => { const n = Number(b.dataset.go); if (canGo(n)) go(n); };
+});
+$('to-2').onclick = () => go(2);
+$('back-1').onclick = () => go(1);
+$('again').onclick = () => { files = []; results = null; renderSelection(); go(1); };
+go(1);
+
 // ---------- input ----------
 
 const isJunk = (path) => /(^|\/)(\.[^/]*|__MACOSX)(\/|$)/.test(path);
@@ -71,22 +111,31 @@ async function walk(entry, prefix = '') {
   return out;
 }
 
+function renderSelection(message = '') {
+  const bytes = files.reduce((s, f) => s + f.size, 0);
+  $('picked').hidden = files.length === 0;
+  $('drop').hidden = files.length > 0;
+  $('picked-title').textContent = `${files.length.toLocaleString()} file${files.length === 1 ? '' : 's'} selected`;
+  $('picked-sub').textContent = mb(bytes) + (bytes > 1.5 * 1024 ** 3 ? ' (large: the browser may run out of memory)' : '');
+  $('selection').textContent = message;
+  $('to-2').disabled = files.length === 0;
+}
+
 async function setSelection(promise) {
   hideError();
   $('selection').textContent = 'Reading files...';
   try {
     files = await expand(await promise);
+    renderSelection(files.length ? '' : 'No usable files found.');
   } catch (err) {
     files = [];
-    showError(err.message || String(err));
+    renderSelection(err.message || String(err));
   }
-  const bytes = files.reduce((s, f) => s + f.size, 0);
-  $('selection').textContent = files.length
-    ? `${files.length.toLocaleString()} files selected (${mb(bytes)}).`
-    : 'No usable files found.';
-  $('run').disabled = files.length === 0;
-  $('step-results').hidden = true;
+  results = null;
+  updateStepper();
 }
+
+$('clear').onclick = () => { files = []; results = null; renderSelection(); updateStepper(); };
 
 $('pick-folder').onclick = () => $('in-folder').click();
 $('pick-files').onclick = () => $('in-files').click();
@@ -131,14 +180,19 @@ updateCli();
 
 // ---------- conversion ----------
 
-function showError(msg) { $('error').textContent = msg; $('error').hidden = false; }
+function showError(msg, log = []) {
+  $('error-msg').textContent = msg;
+  $('err-log').textContent = log.join('\n');
+  $('err-details').hidden = log.length === 0;
+  $('error').hidden = false;
+}
 function hideError() { $('error').hidden = true; }
 
 $('run').onclick = async () => {
   hideError();
   const o = options();
-  $('run').disabled = true;
-  $('step-results').hidden = true;
+  results = null;
+  go(3);
   const t0 = performance.now();
   const tick = setInterval(() => {
     $('progress').textContent = `Converting... ${Math.round((performance.now() - t0) / 1000)}s`;
@@ -160,14 +214,11 @@ $('run').onclick = async () => {
     const out = await p.run();
     await showResults(out, out.log || [], (performance.now() - t0) / 1000);
   } catch (err) {
-    $('log').textContent = (err.log || []).join('\n');
-    showError(`Conversion failed: ${err.message || err}`
-      + (err.log && err.log.length ? ' See the conversion log below for details.' : ''));
-    if (err.log && err.log.length) { $('step-results').hidden = false; $('series').hidden = true; }
+    showError(`Conversion failed: ${err.message || err}`, err.log || []);
+    go(2);
   } finally {
     clearInterval(tick);
-    $('progress').textContent = '';
-    $('run').disabled = false;
+    $('progress').textContent = 'Starting converter...';
     if (d && d.worker) d.worker.terminate();
   }
 };
@@ -239,16 +290,16 @@ async function showResults(outFiles, log, seconds) {
     tr.insertCell().textContent = r.h ? r.h.pixdim.map((x) => x.toFixed(2)).join(' × ') : '';
     tr.insertCell().textContent = mb(r.g.nii.size);
     const actions = tr.insertCell();
-    const pv = el('button', { type: 'button', textContent: 'Preview' });
+    const pv = el('button', { type: 'button', className: 'btn', textContent: 'Preview' });
     pv.onclick = () => preview(r);
-    const dl = el('button', { type: 'button', textContent: 'Download' });
+    const dl = el('button', { type: 'button', className: 'btn', textContent: 'Download' });
     dl.onclick = () => download([r]);
     actions.append(pv, ' ', dl);
   }
   $('preview').hidden = true;
   updateDownloadButton();
-  $('step-results').hidden = false;
-  $('step-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  results = rows;
+  go(4);
 }
 
 function updateDownloadButton() {

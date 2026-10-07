@@ -7,6 +7,7 @@ DICOM headers contain PHI, so everything runs in the user's browser. There is no
 
 ## Features
 
+- Four-step wizard like CROWN (Upload, Configure, Converting, Results), with the same look and light/dark theme.
 - Drop a folder or a `.zip` (or pick files). Whole studies are fine.
 - Every series is listed with description, dimensions and voxel size. Likely T1s are flagged, but never auto-selected.
 - Quick-look preview (three slice views) before downloading.
